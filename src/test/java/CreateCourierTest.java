@@ -1,123 +1,102 @@
 import io.restassured.response.Response;
 import model.CourierModel;
-import io.qameta.allure.Step;
+import io.qameta.allure.Description;
+import io.qameta.allure.junit4.DisplayName;
 import org.junit.After;
 import org.junit.Test;
 import static data.CourierData.*;
-import static data.Endpoints.*;
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 public class CreateCourierTest extends BaseApi {
 
+    private CourierApiClient courierApiClient = new CourierApiClient();
+    private Integer createdCourierId;
 
 
-
-@Test
-@Step("Создание курьера, проверка статуса")
-    public void createCourierTest(){
-    CourierModel courierModel = new CourierModel(COURIER_LOGIN,COURIER_PASSWORD,COURIER_FIRST_NAME);
-
-    given()
-            .header("Content-type","application/json")
-            .body(courierModel)
-            .log().all()
-            .when()
-            .post(CREATE_COURIER)
-            .then().log().all()
-            .assertThat().body("ok", is(true))
-            .and()
-            .statusCode(201);
-
-}
-@Test
-    @Step("Создание курьера с тем же логином")
-    public void createCourierWithDuplicateLoginTest(){
-    CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
-    given()
-            .header("Content-type","application/json")
-            .body(courierModel)
-            .log().all()
-            .when()
-            .post(CREATE_COURIER)
-            .then().log().all()
-            .assertThat().body("ok", is(true))
-            .and()
-            .statusCode(201);
-
-    given()
-            .header("Content-type", "application/json")
-            .body(courierModel)
-            .log().all()
-            .when()
-            .post(CREATE_COURIER)
-            .then().log().all()
-            .assertThat()
-            .statusCode(409);
-
-}
     @Test
-    @Step("Создание курьера без логина")
-    public void createCourierWithoutLoginTest(){
-        CourierModel courierModel = new CourierModel("",COURIER_PASSWORD,COURIER_FIRST_NAME);
+    @DisplayName("Создание курьера, проверка статуса")
+    @Description("Проверяем успешное создание курьера с корректными данными")
+    public void createCourierTest() {
+        CourierModel courierModel = new CourierModel(uniqueLogin, COURIER_PASSWORD, COURIER_FIRST_NAME);
 
-        given()
-                .header("Content-type","application/json")
-                .body(courierModel)
+        Response response = courierApiClient.createCourier(courierModel);
+
+        response.then()
                 .log().all()
-                .when()
-                .post(CREATE_COURIER)
-                .then().log().all()
-                .assertThat().statusCode(400);
+                .assertThat()
+                .statusCode(201)
+                .and()
+                .body("ok", is(true));
 
+        createdCourierId = extractCourierId(new CourierModel(uniqueLogin, COURIER_PASSWORD, COURIER_FIRST_NAME));
     }
+
     @Test
-    @Step("Создание курьера без пароля")
-    public void createCourierWithoutPasswordTest(){
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN,"",COURIER_FIRST_NAME);
+    @DisplayName("Создание курьера с тем же логином")
+    @Description("Проверяем обработку дублирующего логина — должен вернуть 409")
+    public void createCourierWithDuplicateLoginTest() {
+        // Сначала создаём курьера (успешно)
+        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+        courierApiClient.createCourier(courierModel).then().statusCode(201);
 
-        given()
-                .header("Content-type","application/json")
-                .body(courierModel)
+        // Пытаемся создать с тем же логином
+        Response response = courierApiClient.createCourier(courierModel);
+
+        response.then()
                 .log().all()
-                .when()
-                .post(CREATE_COURIER)
-                .then().log().all()
-                .assertThat().statusCode(400);
-
+                .assertThat()
+                .statusCode(409);
     }
+
+    @Test
+    @DisplayName("Создание курьера без логина")
+    @Description("Проверяем обработку отсутствия логина — должен вернуть 400")
+    public void createCourierWithoutLoginTest() {
+        CourierModel courierModel = new CourierModel("", COURIER_PASSWORD, COURIER_FIRST_NAME);
+
+        Response response = courierApiClient.createCourier(courierModel);
+
+        response.then()
+                .log().all()
+                .assertThat()
+                .statusCode(400);
+    }
+
+    @Test
+    @DisplayName("Создание курьера без пароля")
+    @Description("Проверяем обработку отсутствия пароля — должен вернуть 400")
+    public void createCourierWithoutPasswordTest() {
+        CourierModel courierModel = new CourierModel(COURIER_LOGIN, "", COURIER_FIRST_NAME);
+
+        Response response = courierApiClient.createCourier(courierModel);
+
+        response.then()
+                .log().all()
+                .assertThat()
+                .statusCode(400);
+    }
+
     @After
     public void deleteCreatedCourier() {
-        // Создаём модель курьера с теми же данными
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+        if (createdCourierId != null) {
+            Response loginResponse = courierApiClient.loginCourier(
+                    new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME)
+            );
 
-        // Логинимся, чтобы получить id курьера
-        Response loginResponse = given()
-                .header("Content-type", "application/json")
-                .body(courierModel)
-                .log().all()
-                .when()
-                .post(LOGIN_COURIER)
-                .then().log().all()
-                .extract().response();
-
-        // Проверяем, что авторизация прошла успешно (статус 200)
-        if (loginResponse.statusCode() == 200) {
-            // Извлекаем id курьера из ответа
-            int courierId = loginResponse.jsonPath().getInt("id");
-
-            // Удаляем курьера по id
-            given()
-                    .pathParam("id", courierId)
-                    .when()
-                    .delete(DELETE_COURIER)
-                    .then()
-                    .statusCode(200);
-        } else {
-            System.out.println("Курьер не найден — пропуск удаления");
+            if (loginResponse.statusCode() == 200) {
+                courierApiClient.deleteCourier(createdCourierId)
+                        .then().statusCode(200);
+            } else {
+                System.out.println("Курьер не найден — пропуск удаления");
+            }
         }
     }
+
+    private int extractCourierId(CourierModel courierModel) {
+        Response loginResponse = courierApiClient.loginCourier(courierModel);
+        return loginResponse.jsonPath().getInt("id");
     }
+}
 
 
 

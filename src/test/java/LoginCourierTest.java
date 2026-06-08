@@ -2,166 +2,152 @@ import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import model.CourierModel;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import static data.CourierData.*;
 import static data.Endpoints.*;
 import static io.restassured.RestAssured.given;
 
-
 public class LoginCourierTest extends BaseApi {
+    private Integer courierId;
+    private String uniqueLogin;
+    private String password;
 
-    @Test
-    @Step("Логин с валидными данными")
-    public void loginCourierTest(){
+    @Before
+    public void setUpLogin() {
+        uniqueLogin = "courier_" + System.currentTimeMillis();
+        password = COURIER_PASSWORD;
 
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+        CourierModel courierModel = new CourierModel(uniqueLogin, password, COURIER_FIRST_NAME);
 
         given()
-                .header("Content-type","application/json")
+                .header("Content-type", "application/json")
                 .body(courierModel)
                 .when()
                 .post(CREATE_COURIER)
-                .then().log().all();
-        given()
-                .header("Content-type","application/json")
-                .body(courierModel)
-                .log().all()
-                .when()
-                .post(LOGIN_COURIER)
-                .then().log().all()
-                .and()
-                .statusCode(200);
-
+                .then()
+                .statusCode(201);
     }
-    @Test
-    @Step("Логин без ввода login")
-    public void loginWithEmptyLoginFieldTest(){
 
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+    private void authorizeAndGetCourierId() {
+        CourierModel loginModel = new CourierModel(uniqueLogin, password, null);
 
-        given()
-                .header("Content-type","application/json")
-                .body(courierModel)
-                .when()
-                .post(CREATE_COURIER)
-                .then().log().all();
-        CourierModel courierModelForLogin = new CourierModel("",COURIER_PASSWORD, null     );
-        given()
-                .header("Content-type","application/json")
-                .body(courierModelForLogin)
-                .log().all()
+        Response loginResponse = given()
+                .header("Content-type", "application/json")
+                .body(loginModel)
                 .when()
                 .post(LOGIN_COURIER)
-                .then().log().all()
-                .and()
+                .then()
+                .statusCode(200)
+                .extract().response();
+
+        String idString = loginResponse.jsonPath().getString("id");
+        if (idString != null && !idString.isEmpty()) {
+            try {
+                courierId = Integer.parseInt(idString);
+            } catch (NumberFormatException e) {
+                System.out.println("Не удалось преобразовать ID в число: " + idString);
+                courierId = null;
+            }
+        } else {
+            System.out.println("ID курьера не получен из ответа авторизации");
+            courierId = null;
+        }
+    }
+
+    @Test
+    public void loginCourierTest() {
+        CourierModel loginModel = new CourierModel(uniqueLogin, password, null);
+
+        Response response = given()
+                .header("Content-type", "application/json")
+                .body(loginModel)
+                .when()
+                .post(LOGIN_COURIER)
+                .then()
+                .statusCode(200)
+                .extract().response();
+
+        // Сохраняем ID после успешной авторизации
+        String idString = response.jsonPath().getString("id");
+        if (idString != null && !idString.isEmpty()) {
+            courierId = Integer.parseInt(idString);
+        }
+    }
+
+    @Test
+    public void loginWithEmptyLoginFieldTest() {
+        CourierModel loginModel = new CourierModel("", password, null);
+
+        given()
+                .header("Content-type", "application/json")
+                .body(loginModel)
+                .when()
+                .post(LOGIN_COURIER)
+                .then()
                 .statusCode(400);
-
     }
+
     @Test
-    @Step("Логин без ввода password")
-    public void loginWithEmptyPasswordFieldTest(){
-
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+    public void loginWithEmptyPasswordFieldTest() {
+        CourierModel loginModel = new CourierModel(uniqueLogin, "", null);
 
         given()
-                .header("Content-type","application/json")
-                .body(courierModel)
-                .when()
-                .post(CREATE_COURIER)
-                .then().log().all();
-        CourierModel courierModelForLogin = new CourierModel(COURIER_LOGIN,"", null     );
-        given()
-                .header("Content-type","application/json")
-                .body(courierModelForLogin)
-                .log().all()
+                .header("Content-type", "application/json")
+                .body(loginModel)
                 .when()
                 .post(LOGIN_COURIER)
-                .then().log().all()
-                .and()
+                .then()
                 .statusCode(400);
-
     }
+
     @Test
-    @Step("Логин с неправильным password")
-    public void loginCourierWithIncorrectPasswordTest(){
-
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+    public void loginCourierWithIncorrectPasswordTest() {
+        CourierModel loginModel = new CourierModel(uniqueLogin, password + "1", null);
 
         given()
-                .header("Content-type","application/json")
-                .body(courierModel)
-                .when()
-                .post(CREATE_COURIER)
-                .then().log().all();
-        CourierModel courierModelForLogin = new CourierModel(COURIER_LOGIN,COURIER_PASSWORD+"1", null     );
-        given()
-                .header("Content-type","application/json")
-                .body(courierModelForLogin)
-                .log().all()
+                .header("Content-type", "application/json")
+                .body(loginModel)
                 .when()
                 .post(LOGIN_COURIER)
-                .then().log().all()
-                .and()
+                .then()
                 .statusCode(404);
-
     }
+
     @Test
-    @Step("Логин с неправильным login")
-    public void loginCourierWithIncorrectLoginTest(){
-
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+    public void loginCourierWithIncorrectLoginTest() {
+        CourierModel loginModel = new CourierModel(uniqueLogin + "1", password, null);
 
         given()
-                .header("Content-type","application/json")
-                .body(courierModel)
-                .when()
-                .post(CREATE_COURIER)
-                .then().log().all();
-        CourierModel courierModelForLogin = new CourierModel(COURIER_LOGIN+"1",COURIER_PASSWORD, null     );
-        given()
-                .header("Content-type","application/json")
-                .body(courierModelForLogin)
-                .log().all()
+                .header("Content-type", "application/json")
+                .body(loginModel)
                 .when()
                 .post(LOGIN_COURIER)
-                .then().log().all()
-                .and()
+                .then()
                 .statusCode(404);
-
     }
-    @Test
-    @Step("Логин с данными несуществующего пользователя")
-    public void loginWithNonExistentCourierCredentialsTest(){
 
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+    @Test
+    public void loginWithNonExistentCourierCredentialsTest() {
+        CourierModel loginModel = new CourierModel("nonexistent_login", "wrong_password", null);
+
         given()
-                .header("Content-type","application/json")
-                .body(courierModel)
-                .log().all()
+                .header("Content-type", "application/json")
+                .body(loginModel)
                 .when()
                 .post(LOGIN_COURIER)
-                .then().log().all()
-                .and()
+                .then()
                 .statusCode(404);
-
     }
 
     @After
     public void deleteCreatedCourier() {
-        CourierModel courierModel = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+        // Получаем ID только если ещё не получили (например, в тесте с валидными данными)
+        if (courierId == null) {
+            authorizeAndGetCourierId();
+        }
 
-        Response loginResponse = given()
-                .header("Content-type", "application/json")
-                .body(courierModel)
-                .log().all()
-                .when()
-                .post(LOGIN_COURIER)
-                .then().log().all()
-                .extract().response();
-
-        if (loginResponse.statusCode() == 200) {
-            int courierId = loginResponse.jsonPath().getInt("id");
-
+        if (courierId != null) {
             given()
                     .pathParam("id", courierId)
                     .when()
@@ -169,7 +155,7 @@ public class LoginCourierTest extends BaseApi {
                     .then()
                     .statusCode(200);
         } else {
-            System.out.println("Курьер не найден — пропуск удаления");
+            System.out.println("Курьер не был создан или не авторизован — пропуск удаления");
         }
     }
 }

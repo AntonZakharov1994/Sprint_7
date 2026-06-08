@@ -1,20 +1,20 @@
-
 import io.restassured.RestAssured;
-import model.CourierModel;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
-
-import static data.CourierData.*;
 import static data.Endpoints.*;
-import static io.restassured.RestAssured.given;
 
+import java.util.UUID;
 
 public class BaseApi {
+
+    protected static String uniqueLogin;
+
     @BeforeClass
-    public static void setUp(){
-                RestAssured.baseURI = BASE_URL;
-
-
+    public static void setUp() {
+        RestAssured.baseURI = BASE_URL;
+        uniqueLogin = "test_courier_" + UUID.randomUUID().toString();
     }
 
+    protected String getUniqueLogin() {
+        return uniqueLogin;
+    }
 }
