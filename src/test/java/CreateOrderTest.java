@@ -4,13 +4,10 @@ import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import static data.Endpoints.*;
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import data.Endpoints.*;
 
 @RunWith(Parameterized.class)
 public class CreateOrderTest extends BaseApi {
@@ -23,6 +20,7 @@ public class CreateOrderTest extends BaseApi {
         this.color = color;
         this.testDescription = testDescription;
     }
+
     @Parameterized.Parameters
     public static Collection<Object[]> provideOrderColors() {
         return Arrays.asList(new Object[][] {
@@ -32,6 +30,7 @@ public class CreateOrderTest extends BaseApi {
                 { Arrays.asList("BLACK", "GREY"), "Указаны оба цвета" }
         });
     }
+
     @Test
     public void shouldCreateOrderWithDifferentColorOptions() {
         OrderModel orderModel = new OrderModel(
@@ -40,33 +39,21 @@ public class CreateOrderTest extends BaseApi {
                 color
         );
 
-        var response = given()
-                .header("Content-Type", "application/json")
-                .body(orderModel)
-                .when()
-                .log().all()
-                .post(CREATE_ORDER);
-
-
+        Response response = OrderApi.createOrder(orderModel);
 
         response.then()
                 .statusCode(201)
                 .body("track", notNullValue());
 
+
+        currentTrack = response.jsonPath().get("track");
     }
+
     @After
-    public void cancelOrder ( ){
+    public void cancelOrder() {
+        if (currentTrack != null) {
+            Response cancelResponse = OrderApi.cancelOrder(currentTrack);
 
-
-        Response cancelResponse1 = given()
-                .when().log().all()
-                .put(CANCEL_ORDER + "?track=" + currentTrack)
-                .then()
-                .log().all()
-                .extract()
-                .response();
-
+        }
     }
 }
-
-

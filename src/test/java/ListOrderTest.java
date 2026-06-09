@@ -11,7 +11,6 @@ public class ListOrderTest extends BaseApi {
     private Integer currentTrack;
 
     @Test
-    @Step("Получаем список заказов")
     public void getListOrderTest() {
         OrderModel orderModel = new OrderModel(
                 "Naruto", "Uchiha", "Konoha, 142 apt.", "4",

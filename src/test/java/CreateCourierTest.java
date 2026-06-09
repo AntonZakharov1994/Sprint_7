@@ -45,7 +45,8 @@ public class CreateCourierTest extends BaseApi {
         response.then()
                 .log().all()
                 .assertThat()
-                .statusCode(409);
+                .statusCode(409)
+                .body("message", equalTo("Этот логин уже используется. Попробуйте другой."));;
     }
 
     @Test
@@ -59,7 +60,8 @@ public class CreateCourierTest extends BaseApi {
         response.then()
                 .log().all()
                 .assertThat()
-                .statusCode(400);
+                .statusCode(400)
+                .body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
     @Test
@@ -73,7 +75,8 @@ public class CreateCourierTest extends BaseApi {
         response.then()
                 .log().all()
                 .assertThat()
-                .statusCode(400);
+                .statusCode(400)
+                .body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
     @After
