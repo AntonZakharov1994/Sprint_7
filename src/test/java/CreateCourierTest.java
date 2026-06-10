@@ -10,7 +10,7 @@ import static org.hamcrest.Matchers.*;
 public class CreateCourierTest extends BaseApi {
 
     private CourierApiClient courierApiClient = new CourierApiClient();
-    private Integer createdCourierId;
+
 
 
     @Test
@@ -28,7 +28,7 @@ public class CreateCourierTest extends BaseApi {
                 .and()
                 .body("ok", is(true));
 
-        createdCourierId = extractCourierId(new CourierModel(uniqueLogin, COURIER_PASSWORD, COURIER_FIRST_NAME));
+
     }
 
     @Test
@@ -46,7 +46,8 @@ public class CreateCourierTest extends BaseApi {
                 .log().all()
                 .assertThat()
                 .statusCode(409)
-                .body("message", equalTo("Этот логин уже используется. Попробуйте другой."));;
+                .body("message", equalTo("Этот логин уже используется. Попробуйте другой."));
+        ;
     }
 
     @Test
@@ -81,23 +82,23 @@ public class CreateCourierTest extends BaseApi {
 
     @After
     public void deleteCreatedCourier() {
-        if (createdCourierId != null) {
-            Response loginResponse = courierApiClient.loginCourier(
-                    new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME)
-            );
+        CourierModel courierForLogin = new CourierModel(COURIER_LOGIN, COURIER_PASSWORD, COURIER_FIRST_NAME);
+        Response loginResponse = courierApiClient.loginCourier(courierForLogin);
 
-            if (loginResponse.statusCode() == 200) {
-                courierApiClient.deleteCourier(createdCourierId)
+        if (loginResponse.statusCode() == 200) {
+            Integer courierIdToDelete = loginResponse.jsonPath().getInt("id");
+
+            if (courierIdToDelete != null) {
+                courierApiClient.deleteCourier(courierIdToDelete)
                         .then().statusCode(200);
+                System.out.println("Курьер с ID " + courierIdToDelete + " успешно удалён");
             } else {
-                System.out.println("Курьер не найден — пропуск удаления");
+                System.out.println("Не удалось извлечь ID курьера из ответа логина");
             }
+        } else {
+            System.out.println("Логин курьера не удался (статус: " +
+                    loginResponse.statusCode() + ") — пропуск удаления");
         }
-    }
-
-    private int extractCourierId(CourierModel courierModel) {
-        Response loginResponse = courierApiClient.loginCourier(courierModel);
-        return loginResponse.jsonPath().getInt("id");
     }
 }
 
